@@ -118,8 +118,13 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     } else {
       kvolumes := key2volume(key, a.volumes, a.replicas, a.subvolumes)
       if needs_rebalance(rec.rvolumes, kvolumes) {
+        w.Header().Set("Key-Balance", "unbalanced")
         fmt.Println("on wrong volumes, needs rebalance")
+      } else {
+        w.Header().Set("Key-Balance", "balanced")
       }
+      w.Header().Set("Key-Volumes", strings.Join(rec.rvolumes, ","))
+
       // check the volume servers in a random order
       good := false
       for _, vn := range rand.Perm(len(rec.rvolumes)) {
@@ -182,8 +187,11 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
       }
     }
 
-    // compute the hash of the value
-    hash := fmt.Sprintf("%x", md5.Sum(buf.Bytes()))
+    var hash = ""
+    if a.md5sum {
+      // compute the hash of the value
+      hash = fmt.Sprintf("%x", md5.Sum(buf.Bytes()))
+    }
 
     // push to leveldb as existing
     // note that the key is locked, so nobody wrote to the leveldb
